@@ -2,10 +2,11 @@ import { useState } from 'react';
 import './App.css';
 
 function App() {
-  const [number, setNumber] = useState('');
-  const [output, setOutput] = useState([]);
-  const [isFormVisible, setIsFormVisible] = useState(true);
-  const [captchaResolved, setCaptchaResolved] = useState(false); // Nouvelle variable pour savoir si CAPTCHA est résolu
+  const [number, setNumber] = useState(''); // Pour stocker l'input de l'utilisateur
+  const [output, setOutput] = useState([]); // Pour stocker et afficher les résultats des requêtes
+  const [isFormVisible, setIsFormVisible] = useState(true); // Pour gérer l'affichage du formulaire
+  const [captchaResolved, setCaptchaResolved] = useState(false); // Pour savoir si le CAPTCHA a été résolu
+  const [captchaRequired, setCaptchaRequired] = useState(false); // Pour savoir si le CAPTCHA est nécessaire
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,8 +17,9 @@ function App() {
     }
 
     setOutput([]);
-    setIsFormVisible(false); // Hide form
-    setCaptchaResolved(false); // Reset CAPTCHA state
+    setIsFormVisible(false); // Masquer le formulaire
+    setCaptchaResolved(false); // Réinitialiser l'état CAPTCHA
+    setCaptchaRequired(false); // Réinitialiser l'indicateur CAPTCHA
 
     // Effectuer les requêtes
     for (let i = 1; i <= n; i++) {
@@ -26,8 +28,9 @@ function App() {
         if (response.status === 200) {
           const text = await response.text();
           setOutput((prev) => [...prev, `${i}. ${text}`]);
-        } else if (response.status === 403 && i > 100 && !captchaResolved) {
-          // Si CAPTCHA est nécessaire après 100 requêtes
+        } else if (response.status === 403 && i > 100 && !captchaResolved && !captchaRequired) {
+          // Si CAPTCHA est nécessaire après 100 requêtes et qu'il n'a pas encore été résolu
+          setCaptchaRequired(true);
           await handleCaptcha(i);
         } else {
           setOutput((prev) => [...prev, `${i}. Forbidden`]);
@@ -36,11 +39,11 @@ function App() {
         setOutput((prev) => [...prev, `${i}. Network Error`]);
       }
 
-      // Pause de 1 seconde entre les requêtes
+      // Pause de 1 seconde entre chaque requête
       await new Promise((resolve) => setTimeout(resolve, 1000)); 
     }
 
-    setIsFormVisible(true); // Show form again
+    setIsFormVisible(true); // Afficher le formulaire après la fin des requêtes
   };
 
   const handleCaptcha = async (attempt) => {
@@ -54,7 +57,8 @@ function App() {
       window.awsWafCaptchaCallback = function () {
         alert('CAPTCHA solved successfully!');
         setCaptchaResolved(true); // Indiquer que le CAPTCHA a été résolu
-        resolve();
+        setCaptchaRequired(false); // Réinitialiser l'indicateur CAPTCHA
+        resolve(); // Continuer la boucle après que le CAPTCHA soit résolu
       };
     });
   };
