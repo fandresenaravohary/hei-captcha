@@ -5,6 +5,7 @@ function App() {
   const [number, setNumber] = useState('');
   const [output, setOutput] = useState([]);
   const [isFormVisible, setIsFormVisible] = useState(true);
+  const [captchaResolved, setCaptchaResolved] = useState(false); // Nouvelle variable pour savoir si CAPTCHA est résolu
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,14 +17,17 @@ function App() {
 
     setOutput([]);
     setIsFormVisible(false); // Hide form
+    setCaptchaResolved(false); // Reset CAPTCHA state
 
+    // Effectuer les requêtes
     for (let i = 1; i <= n; i++) {
       try {
         const response = await fetch('https://api.prod.jcloudify.com/whoami');
         if (response.status === 200) {
           const text = await response.text();
           setOutput((prev) => [...prev, `${i}. ${text}`]);
-        } else if (response.status === 403) {
+        } else if (response.status === 403 && i > 100 && !captchaResolved) {
+          // Si CAPTCHA est nécessaire après 100 requêtes
           await handleCaptcha(i);
         } else {
           setOutput((prev) => [...prev, `${i}. Forbidden`]);
@@ -31,7 +35,9 @@ function App() {
       } catch (error) {
         setOutput((prev) => [...prev, `${i}. Network Error`]);
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Pause 1 second
+
+      // Pause de 1 seconde entre les requêtes
+      await new Promise((resolve) => setTimeout(resolve, 1000)); 
     }
 
     setIsFormVisible(true); // Show form again
@@ -47,6 +53,7 @@ function App() {
       // Attendre que l'utilisateur résolve le CAPTCHA
       window.awsWafCaptchaCallback = function () {
         alert('CAPTCHA solved successfully!');
+        setCaptchaResolved(true); // Indiquer que le CAPTCHA a été résolu
         resolve();
       };
     });
